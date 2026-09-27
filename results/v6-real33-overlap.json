@@ -1,0 +1,320 @@
+{
+ "what": "the 30 real-arm calls whose rows differ between seals 7584 and 7605, with each call's distance to its bar from the 7584 rows; vish's CPU rerun of those rows (seal 7914) matched 7584 on every row (c81133, c82579)",
+ "seals": {
+  "quire_gpu": 7584,
+  "head_of_engineering_gpu": 7605,
+  "vish_cpu": 7914
+ },
+ "calls": 30,
+ "by_population": {
+  "zero_zero_tie": 13,
+  "nonzero_under_1hz": 2,
+  "wide": 15
+ },
+ "flips": 0,
+ "rows": [
+  {
+   "item": 1,
+   "trial": 0,
+   "stimuli_differing": [
+    "repellent"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 1,
+   "trial": 1,
+   "stimuli_differing": [
+    "repellent"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 1,
+   "trial": 2,
+   "stimuli_differing": [
+    "attractant",
+    "repellent"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 1,
+   "trial": 17,
+   "stimuli_differing": [
+    "attractant",
+    "neutral"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 1,
+   "trial": 22,
+   "stimuli_differing": [
+    "attractant"
+   ],
+   "abs_margin_hz": 0.4167,
+   "population": "nonzero_under_1hz",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 1,
+   "trial": 23,
+   "stimuli_differing": [
+    "attractant",
+    "repellent"
+   ],
+   "abs_margin_hz": 0.4167,
+   "population": "nonzero_under_1hz",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 1,
+   "trial": 29,
+   "stimuli_differing": [
+    "neutral"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 0,
+   "stimuli_differing": [
+    "low"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 7,
+   "stimuli_differing": [
+    "high"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 13,
+   "stimuli_differing": [
+    "low"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 18,
+   "stimuli_differing": [
+    "low"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 20,
+   "stimuli_differing": [
+    "high"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 26,
+   "stimuli_differing": [
+    "high"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 27,
+   "stimuli_differing": [
+    "high"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 2,
+   "trial": 29,
+   "stimuli_differing": [
+    "low"
+   ],
+   "abs_margin_hz": 0.0,
+   "population": "zero_zero_tie",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 3,
+   "trial": 17,
+   "stimuli_differing": [
+    "co2"
+   ],
+   "abs_margin_hz": 6.25,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 3,
+   "trial": 24,
+   "stimuli_differing": [
+    "co2"
+   ],
+   "abs_margin_hz": 5.0,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 4,
+   "trial": 20,
+   "stimuli_differing": [
+    "recede"
+   ],
+   "abs_margin_hz": 109.1667,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 5,
+   "trial": 7,
+   "stimuli_differing": [
+    "rot_b"
+   ],
+   "abs_margin_hz": 73.3333,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 5,
+   "trial": 10,
+   "stimuli_differing": [
+    "rot_b"
+   ],
+   "abs_margin_hz": 61.6667,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 5,
+   "trial": 19,
+   "stimuli_differing": [
+    "rot_b"
+   ],
+   "abs_margin_hz": 46.6667,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 5,
+   "trial": 21,
+   "stimuli_differing": [
+    "rot_a"
+   ],
+   "abs_margin_hz": 53.3333,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 5,
+   "trial": 24,
+   "stimuli_differing": [
+    "rot_b"
+   ],
+   "abs_margin_hz": 83.3333,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 5,
+   "trial": 29,
+   "stimuli_differing": [
+    "rot_b"
+   ],
+   "abs_margin_hz": 53.3333,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 6,
+   "trial": 7,
+   "stimuli_differing": [
+    "cva"
+   ],
+   "abs_margin_hz": 11.3355,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 6,
+   "trial": 12,
+   "stimuli_differing": [
+    "cva"
+   ],
+   "abs_margin_hz": 8.8996,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 6,
+   "trial": 18,
+   "stimuli_differing": [
+    "female_taste"
+   ],
+   "abs_margin_hz": 7.7564,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 6,
+   "trial": 19,
+   "stimuli_differing": [
+    "cva"
+   ],
+   "abs_margin_hz": 7.0085,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 6,
+   "trial": 20,
+   "stimuli_differing": [
+    "cva"
+   ],
+   "abs_margin_hz": 14.1987,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  },
+  {
+   "item": 6,
+   "trial": 23,
+   "stimuli_differing": [
+    "cva"
+   ],
+   "abs_margin_hz": 13.3974,
+   "population": "wide",
+   "flipped_between_7584_and_7605": false
+  }
+ ]
+}
