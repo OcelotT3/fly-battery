@@ -58,5 +58,7 @@ S = A.tocsc().multiply(sign[None, :].astype(np.float32)).tocsr(); S.eliminate_ze
 rule = {'sign_rule': sign_rule_str,
         'labels': dict(collections.Counter(lab.tolist())), 'excitatory': int((sign > 0).sum()), 'inhibitory': int((sign < 0).sum()), 'zero': int((sign == 0).sum()),
         'signed_nnz': int(S.nnz), 'dropped_edges_from_zero_sign_presyn': int(A.nnz - S.nnz)}
-json.dump(figures, open('battery/substrate-figures.json', 'w'), indent=1); json.dump(rule, open('battery/sign-rule.json', 'w'), indent=1)
+rule_out = 'battery/sign-rule-monoamines.json' if use_mono else 'battery/sign-rule.json'
+json.dump(figures, open('battery/substrate-figures.json', 'w'), indent=1); json.dump(rule, open(rule_out, 'w'), indent=1)
 print('signs:', {k: rule[k] for k in ('excitatory', 'inhibitory', 'zero', 'signed_nnz', 'dropped_edges_from_zero_sign_presyn')}, '%.0fs' % (time.time() - t0))
+
