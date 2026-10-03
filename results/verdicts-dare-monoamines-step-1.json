@@ -1,0 +1,159 @@
+{
+ "1": {
+  "name": "odour valence ordering",
+  "conditions": {
+   "real": {
+    "direction_observed": "8/30",
+    "p_one_sided": 0.9974,
+    "holds": false,
+    "mean_stats": [
+     0.0,
+     -0.514,
+     -3.611
+    ],
+    "hits": [
+     1,
+     2,
+     3,
+     7,
+     9,
+     13,
+     16,
+     25
+    ]
+   },
+   "shuffled": {
+    "direction_observed": "1/30",
+    "p_one_sided": 1.0,
+    "holds": false,
+    "mean_stats": [
+     2.319,
+     0.222,
+     0.0
+    ],
+    "hits": [
+     4
+    ]
+   },
+   "random": {
+    "direction_observed": "4/30",
+    "p_one_sided": 1.0,
+    "holds": false,
+    "mean_stats": [
+     -18.722,
+     -14.0,
+     -0.653
+    ],
+    "hits": [
+     1,
+     5,
+     10,
+     11
+    ]
+   }
+  },
+  "difference_tests": {
+   "shuffled": {
+    "real": "8/30",
+    "fake": "1/30",
+    "fisher_p": 0.01285,
+    "holds": false,
+    "two_sided_p": 0.02569,
+    "sign": "real>fake",
+    "cell": "failed"
+   },
+   "random": {
+    "real": "8/30",
+    "fake": "4/30",
+    "fisher_p": 0.16671,
+    "holds": false,
+    "two_sided_p": 0.33341,
+    "sign": "real>fake",
+    "cell": "failed"
+   }
+  },
+  "count_bar": "with real at 8/30, the fake must show the direction in at most 0 of 30",
+  "verdict": "failed",
+  "real_only": false
+ },
+ "2": {
+  "name": "concentration reversal",
+  "conditions": {
+   "real": {
+    "verdict": "not-run"
+   },
+   "shuffled": {
+    "verdict": "not-run"
+   },
+   "random": {
+    "verdict": "not-run"
+   }
+  },
+  "verdict": "not-run",
+  "real_only": false
+ },
+ "3": {
+  "name": "CO2 avoidance, walking state",
+  "conditions": {
+   "real": {
+    "verdict": "not-run"
+   },
+   "shuffled": {
+    "verdict": "not-run"
+   },
+   "random": {
+    "verdict": "not-run"
+   }
+  },
+  "verdict": "not-run",
+  "real_only": false
+ },
+ "4": {
+  "name": "looming escape via the giant fibre",
+  "conditions": {
+   "real": {
+    "verdict": "not-run"
+   },
+   "shuffled": {
+    "verdict": "not-run"
+   },
+   "random": {
+    "verdict": "not-run"
+   }
+  },
+  "verdict": "not-run",
+  "real_only": false
+ },
+ "5": {
+  "name": "optomotor turning",
+  "conditions": {
+   "real": {
+    "verdict": "not-run"
+   },
+   "shuffled": {
+    "verdict": "not-run"
+   },
+   "random": {
+    "verdict": "not-run"
+   }
+  },
+  "verdict": "not-run",
+  "real_only": false
+ },
+ "6": {
+  "name": "male courtship song pathway",
+  "conditions": {
+   "real": {
+    "verdict": "not-run"
+   },
+   "shuffled": {
+    "verdict": "not-run"
+   },
+   "random": {
+    "verdict": "not-run"
+   }
+  },
+  "verdict": "not-run",
+  "real_only": false
+ }
+}
