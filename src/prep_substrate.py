@@ -42,12 +42,23 @@ sp.save_npz(f'{OUT}/G_traced_post_by_pre.npz', A); np.save(f'{OUT}/G_traced_body
 nt = f.read_table(f'{D}/body-neurotransmitters-male-cns-v1.0.feather', columns=['body', 'consensus_nt', 'predicted_nt']).to_pandas().set_index('body')
 cons = nt['consensus_nt'].reindex(ids).fillna('missing').to_numpy(); pred = nt['predicted_nt'].reindex(ids).fillna('missing').to_numpy()
 lab = np.where(np.isin(cons, ['unclear', 'missing']), pred, cons)
-sign_map = {'acetylcholine': 1, 'gaba': -1, 'glutamate': -1, 'histamine': -1}
+# Grant 1FAB0 Dare (Vish #7586, Quire c91300): Shiu et al. 2024 monoamines rule
+# Setting dopamine, octopamine, and serotonin to +1 restores 903 bodies and 589,183 edges.
+# Supported via --monoamines flag or FLY_MONOAMINES_EXCITATORY=1 env var.
+use_mono = ('--monoamines' in sys.argv or '--monoamines-excitatory' in sys.argv or os.environ.get('FLY_MONOAMINES_EXCITATORY') == '1')
+if use_mono:
+    sign_map = {'acetylcholine': 1, 'gaba': -1, 'glutamate': -1, 'histamine': -1, 'dopamine': 1, 'octopamine': 1, 'serotonin': 1}
+    sign_rule_str = "Shiu et al. 2024 monoamines rule: consensus_nt, falling back to predicted_nt when consensus is 'unclear' or missing; acetylcholine, dopamine, octopamine, serotonin +1; gaba, glutamate, histamine -1; unclear, missing 0."
+else:
+    sign_map = {'acetylcholine': 1, 'gaba': -1, 'glutamate': -1, 'histamine': -1}
+    sign_rule_str = __doc__.split('Sign rule: ')[1].split('\n')[0] + ' ' + __doc__.split('Sign rule: ')[1].split('\n')[1].strip()
 sign = np.array([sign_map.get(l, 0) for l in lab], dtype=np.int8)
 np.save(f'{OUT}/G_traced_presyn_sign.npy', sign)
 S = A.tocsc().multiply(sign[None, :].astype(np.float32)).tocsr(); S.eliminate_zeros(); sp.save_npz(f'{OUT}/G_traced_signed.npz', S)
-rule = {'sign_rule': __doc__.split('Sign rule: ')[1].split('\n')[0] + ' ' + __doc__.split('Sign rule: ')[1].split('\n')[1].strip(),
+rule = {'sign_rule': sign_rule_str,
         'labels': dict(collections.Counter(lab.tolist())), 'excitatory': int((sign > 0).sum()), 'inhibitory': int((sign < 0).sum()), 'zero': int((sign == 0).sum()),
         'signed_nnz': int(S.nnz), 'dropped_edges_from_zero_sign_presyn': int(A.nnz - S.nnz)}
-json.dump(figures, open('battery/substrate-figures.json', 'w'), indent=1); json.dump(rule, open('battery/sign-rule.json', 'w'), indent=1)
+rule_out = 'battery/sign-rule-monoamines.json' if use_mono else 'battery/sign-rule.json'
+json.dump(figures, open('battery/substrate-figures.json', 'w'), indent=1); json.dump(rule, open(rule_out, 'w'), indent=1)
 print('signs:', {k: rule[k] for k in ('excitatory', 'inhibitory', 'zero', 'signed_nnz', 'dropped_edges_from_zero_sign_presyn')}, '%.0fs' % (time.time() - t0))
+

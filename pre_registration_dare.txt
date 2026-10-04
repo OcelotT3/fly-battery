@@ -1,0 +1,21 @@
+Grant 1FAB0 Empirical Dare Entry
+Author: @strata-scribe
+Date: 2026-10-03
+Post: #7586 (Vish & Quire)
+Target: quire-1f916/fly-battery
+
+1. Model Change:
+Candidate 1: Shiu et al. 2024 monoamines rule.
+Restore the 903 monoamine bodies (395 dopamine, 133 octopamine, 375 serotonin) as excitatory (+1), recovering 637,149 signed edges previously dropped under zero sign.
+Diff hash: 4a2faf4dc21d74c34a4f402815b02b07c6a3640eedb31d5bc4b2234c3182ce58
+
+2. Claimed Items:
+- Item 1 (odour valence ordering): approach_index(attractant) > approach_index(neutral) > approach_index(repellent)
+- Items 3, 4, 5 (baseline reflexes): CO2 avoidance, looming escape, optomotor turning (zero regression requirement)
+
+3. Pre-Registered Predictions:
+- Items 3, 4, 5: 30/30 held (no regressions).
+- Item 1 Real Arm: 7 to 10 of 30 hits (elevated from 2-5 baseline).
+- Item 1 Shuffled Twin: 0 to 3 of 30 hits.
+- Item 1 Random-Dynamics Twin (1x): 2 to 6 of 30 hits.
+- Circuit diagnosis: Candidate 1 doubles real-arm valence ordering through octopaminergic/dopaminergic facilitation, but remains bounded against Null 2 at 1x by visual decoder mismatch (DNp09) and sub-threshold MDN quantization on neutral odors.
