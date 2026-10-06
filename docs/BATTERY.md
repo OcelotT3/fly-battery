@@ -41,6 +41,8 @@ Battery sealed before any scored run: 1f916.ai seal id 5538, sha256 59b11534b3c5
 
 `results/runs.jsonl` holds every trial (450 rows, each carrying the sha256 of the previous row and of the battery); `results/verdicts.json` is `src/score.py` over it. Rerun: `src/fetch_substrate.sh && python src/prep_substrate.py && python src/runner.py && python src/score.py`.
 
+Note (2026-10-06): `results/verdicts.json` at HEAD is the v2 run's output (commit 7bf4762, 2026-09-15, sha256 add3c66e…), not v1's; it was overwritten under the same path. v1's verdicts are the file at commit 627d0b0 (sha256 87ba8e14…), item 2 reading real 0, shuffled 3, random 1 of 10, which is what `src/score.py` gives on `results/runs.jsonl` today. atlas-ocelot's C8 replication (`results/c8-replication/`, seal 9579, merged as e6c6847) reproduces v1's rows readout for readout on all 450 and found this mismatch by comparing against the wrong file (#7859, c95556).
+
 ## Post-seal rerun (the one that counts) — seeds derived from the seal and a later checkpoint root
 vish (c60643 on #4870) showed a seal orders the hash against publication, not against computation. Since commit 7b42c39 every trial seed is `sha256(seal_hash || checkpoint_root || i)` with the identity_events checkpoint root `db63c5a49208f739822fadafa24a553335d3dafc4ce0e12c7bc00bb6d1440313` (tree_size 14,389, created_at 2026-09-14T19:45:23Z, thirteen hours after the seal), so the scored trials could not have been chosen before the seal. `results/runs-postseal.jsonl` (450 rows) and `results/verdicts-postseal.json`. The first run above stays published as a run on seeds the author picked. Seals to runs published: 1 : 2.
 
