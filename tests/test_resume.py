@@ -69,27 +69,64 @@ class ResumeTests(unittest.TestCase):
                 json.dumps({k: v for k, v in rows[-1].items() if k != 'sha256'}, sort_keys=True).encode()
             ).hexdigest())
 
-    def test_explicit_chain_and_trial_stay_put(self):
+    def test_explicit_chain_must_match_last_sha_and_trial_pin_stays(self):
         with tempfile.TemporaryDirectory() as td:
             path = os.path.join(td, 'out.jsonl')
             with open(path, 'w') as f:
                 f.write(json.dumps(row(trial=4, sha256='ddd')) + '\n')
-            r = harden.apply_resume(path, 'pinned', 0)
-            self.assertEqual(r.chain_prev, 'pinned')
+            r = harden.apply_resume(path, 'ddd', 0)
+            self.assertEqual(r.chain_prev, 'ddd')
             self.assertEqual(r.trial_start, 0)
             self.assertIn(harden.row_key(1, 'real', 4, 'a', None, None), r.completed_keys)
+            with self.assertRaises(harden.ResumeRefused) as caught:
+                harden.apply_resume(path, 'pinned', 0)
+            msg = str(caught.exception)
+            self.assertIn('pinned', msg)
+            self.assertIn('ddd', msg)
+            self.assertEqual(Path(path).read_text(), json.dumps(row(trial=4, sha256='ddd')) + '\n')
 
-    def test_last_row_without_sha_does_not_invent_one(self):
+    def test_chain_prev_without_resume_is_refused(self):
+        with self.assertRaises(harden.ResumeRefused) as caught:
+            harden.reject_bare_chain_prev('anything', False)
+        self.assertIn('--chain-prev is valid only with --resume', str(caught.exception))
+        harden.reject_bare_chain_prev(None, False)
+        harden.reject_bare_chain_prev('anything', True)
+
+    def test_last_row_without_sha_refuses(self):
         with tempfile.TemporaryDirectory() as td:
             path = os.path.join(td, 'out.jsonl')
-            bare = row()
+            bare = row(trial=1)
             del bare['sha256']
             with open(path, 'w') as f:
-                f.write(json.dumps(row(sha256='aaa')) + '\n')
+                f.write(json.dumps(row(trial=0, sha256='aaa')) + '\n')
                 f.write(json.dumps(bare) + '\n')
+            with self.assertRaises(harden.ResumeRefused) as caught:
+                harden.apply_resume(path, None, None)
+            self.assertIn('no sha256', str(caught.exception))
+            numbered = row(trial=2, sha256=123)
+            with open(path, 'w') as f:
+                f.write(json.dumps(numbered) + '\n')
+            with self.assertRaises(harden.ResumeRefused) as caught:
+                harden.apply_resume(path, 'aaa', None)
+            self.assertIn('no sha256', str(caught.exception))
+            blank = row(trial=3, sha256='')
+            with open(path, 'w') as f:
+                f.write(json.dumps(blank) + '\n')
+            with self.assertRaises(harden.ResumeRefused) as caught:
+                harden.apply_resume(path, None, None)
+            self.assertIn('no sha256', str(caught.exception))
+
+    def test_earlier_row_without_sha_is_ok_when_last_has_one(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, 'out.jsonl')
+            bare = row(trial=0)
+            del bare['sha256']
+            with open(path, 'w') as f:
+                f.write(json.dumps(bare) + '\n')
+                f.write(json.dumps(row(trial=1, sha256='bbb')) + '\n')
             r = harden.apply_resume(path, None, None)
-            self.assertIsNone(r.chain_prev)
-            self.assertEqual(len(r.completed_keys), 1)
+            self.assertEqual(r.chain_prev, 'bbb')
+            self.assertEqual(r.trial_start, 2)
 
     def test_torn_last_line_is_truncated(self):
         good = json.dumps(row(trial=3, sha256='aaa')) + '\n'
@@ -98,13 +135,19 @@ class ResumeTests(unittest.TestCase):
             path = os.path.join(td, 'out.jsonl')
             with open(path, 'wb') as f:
                 f.write(good.encode() + torn.encode())
+            original = good.encode() + torn.encode()
             r = harden.apply_resume(path, None, None)
             data = Path(path).read_bytes()
             self.assertNotIn(torn.encode(), data)
             self.assertEqual(data, good.encode())
             self.assertEqual(r.chain_prev, 'aaa')
             self.assertEqual(r.trial_start, 4)
-            self.assertTrue(any('truncated torn last line' in line for line in r.logs))
+            sides = [n for n in os.listdir(td) if n.startswith('out.jsonl.torn-')]
+            self.assertEqual(len(sides), 1)
+            side_path = os.path.join(td, sides[0])
+            self.assertEqual(Path(side_path).read_bytes(), torn.encode())
+            self.assertEqual(data + Path(side_path).read_bytes(), original)
+            self.assertTrue(any('truncated torn last line' in line and side_path in line for line in r.logs))
 
     def test_torn_line_with_newline_is_truncated(self):
         good = json.dumps(row(sha256='aaa')) + '\n'
@@ -113,10 +156,16 @@ class ResumeTests(unittest.TestCase):
             path = os.path.join(td, 'out.jsonl')
             with open(path, 'wb') as f:
                 f.write(good.encode() + torn.encode())
+            original = good.encode() + torn.encode()
             r = harden.apply_resume(path, None, None)
-            self.assertEqual(Path(path).read_bytes(), good.encode())
+            data = Path(path).read_bytes()
+            self.assertEqual(data, good.encode())
             self.assertEqual(r.chain_prev, 'aaa')
-            self.assertTrue(any('truncated torn' in line for line in r.logs))
+            sides = [n for n in os.listdir(td) if n.startswith('out.jsonl.torn-')]
+            self.assertEqual(len(sides), 1)
+            side_path = os.path.join(td, sides[0])
+            self.assertEqual(data + Path(side_path).read_bytes(), original)
+            self.assertTrue(any('truncated torn' in line and side_path in line for line in r.logs))
 
     def test_middle_garbage_is_not_truncated(self):
         lines = 'not-json\n' + json.dumps(row(sha256='zzz')) + '\n'
@@ -141,6 +190,7 @@ class ResumeTests(unittest.TestCase):
             self.assertEqual(r.chain_prev, 'abc')
             self.assertEqual(r.trial_start, 5)
             self.assertTrue(any('newline' in line for line in r.logs))
+            self.assertFalse(any(n.startswith('out.jsonl.torn-') for n in os.listdir(td)))
 
     def test_chain_recipe_excludes_sha256_and_uses_default_separators(self):
         battery = b'{"seal":"example"}\n'
@@ -167,6 +217,8 @@ class ResumeTests(unittest.TestCase):
         src = runner_text()
         self.assertIn('import harden\n', src)
         self.assertIn('harden.apply_resume', src)
+        self.assertIn('harden.reject_bare_chain_prev', src)
+        self.assertIn('except harden.ResumeRefused as err:', src)
         self.assertIn('if rk in completed_keys:', src)
         self.assertIn('skip duplicate', src)
         self.assertIn("if a.trial_start is None:\n        a.trial_start = 0\n", src)

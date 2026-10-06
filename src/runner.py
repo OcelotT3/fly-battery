@@ -130,8 +130,8 @@ def item_plan(it):
     return stim, ro
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--items', default='1,2,3,4,5,6'); ap.add_argument('--trials', type=int, default=T['paired_trials']); ap.add_argument('--conditions', default='real,shuffled,random'); ap.add_argument('--smoke', action='store_true'); ap.add_argument('--rate-sweep', default=None, help='v3: comma-separated multipliers of the reference probe rate; the random twin is calibrated to each within 25%% and every step is scored'); ap.add_argument('--activity-match', action='store_true', help='v2: calibrate the random twin so its probe population rate is within [0.5,2]x the reference model'); ap.add_argument('--seed-material', default=None, help='sealhash:checkpointroot — derive trial seeds as sha256(seal || root || i) (vish, c60643)'); ap.add_argument('--jitter-sweep', default=None, help='v6: comma-separated per-neuron jitter factors j; the random twin is drawn at each j with the SAME six global draws per seed, calibrated to --jitter-target x the reference probe rate within 25%%, and every width is scored (cost-is-not-value c75802)'); ap.add_argument('--jitter-target', type=float, default=1.0, help='v6: the one frozen rate target for the jitter sweep (multiplier of the reference probe rate)'); ap.add_argument('--out', default='results/runs.jsonl'); ap.add_argument('--trial-start', type=int, default=None, help='2026-09-25: first trial index to run (seeds are per index, so a slice reproduces the same rows as the full run); omitted means 0, unless --resume fills the next index. An explicit 0 stays 0')
-    ap.add_argument('--chain-prev', default=None, help='sha256 of the last row already in --out; omitted means the battery-file hash, unless --resume fills that sha256 from the last row')
-    ap.add_argument('--resume', action='store_true', help='parse --out for the last row sha256 and completed row keys; skip duplicates; auto-wire --chain-prev and --trial-start when omitted. A torn last line is truncated first')
+    ap.add_argument('--chain-prev', default=None, help='with --resume only: must equal the last sha256 in --out, or the run refuses and prints both. Refused without --resume. Omitted means the battery-file hash, unless --resume fills the last row sha256')
+    ap.add_argument('--resume', action='store_true', help='parse --out for the last row sha256 and completed row keys; skip duplicates; auto-wire --chain-prev and --trial-start when omitted. A torn last line is saved beside the file and truncated first. A last row with no sha256 refuses')
     a = ap.parse_args()
     def trial_seed(i):
         if not a.seed_material: return i
@@ -139,8 +139,17 @@ def main():
     items = [it for it in B['items'] if it['id'] in {int(x) for x in a.items.split(',')}]; conds = a.conditions.split(','); ntr = 1 if a.smoke else a.trials
     os.makedirs('results', exist_ok=True)
     completed_keys = set()
+    try:
+        harden.reject_bare_chain_prev(a.chain_prev, a.resume)
+    except harden.ResumeRefused as err:
+        sys.exit(str(err))
     if a.resume:
-        wired = harden.apply_resume(a.out, a.chain_prev, a.trial_start)
+        try:
+            wired = harden.apply_resume(a.out, a.chain_prev, a.trial_start)
+        except harden.ResumeRefused as err:
+            for line in err.logs:
+                print(line, flush=True)
+            sys.exit(str(err))
         a.chain_prev, a.trial_start, completed_keys = wired.chain_prev, wired.trial_start, wired.completed_keys
         for line in wired.logs:
             print(line, flush=True)
