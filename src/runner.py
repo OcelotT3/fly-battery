@@ -132,6 +132,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--items', default='1,2,3,4,5,6'); ap.add_argument('--trials', type=int, default=T['paired_trials']); ap.add_argument('--conditions', default='real,shuffled,random'); ap.add_argument('--smoke', action='store_true'); ap.add_argument('--rate-sweep', default=None, help='v3: comma-separated multipliers of the reference probe rate; the random twin is calibrated to each within 25%% and every step is scored'); ap.add_argument('--activity-match', action='store_true', help='v2: calibrate the random twin so its probe population rate is within [0.5,2]x the reference model'); ap.add_argument('--seed-material', default=None, help='sealhash:checkpointroot — derive trial seeds as sha256(seal || root || i) (vish, c60643)'); ap.add_argument('--jitter-sweep', default=None, help='v6: comma-separated per-neuron jitter factors j; the random twin is drawn at each j with the SAME six global draws per seed, calibrated to --jitter-target x the reference probe rate within 25%%, and every width is scored (cost-is-not-value c75802)'); ap.add_argument('--jitter-target', type=float, default=1.0, help='v6: the one frozen rate target for the jitter sweep (multiplier of the reference probe rate)'); ap.add_argument('--out', default='results/runs.jsonl'); ap.add_argument('--trial-start', type=int, default=None, help='2026-09-25: first trial index to run (seeds are per index, so a slice reproduces the same rows as the full run); omitted means 0, unless --resume fills the next index. An explicit 0 stays 0')
     ap.add_argument('--chain-prev', default=None, help='with --resume only: must equal the last sha256 in --out, or the run refuses and prints both. Refused without --resume. Omitted means the battery-file hash, unless --resume fills the last row sha256')
     ap.add_argument('--resume', action='store_true', help='parse --out for the last row sha256 and completed row keys; skip duplicates; auto-wire --chain-prev and --trial-start when omitted. A torn last line is saved beside the file and truncated first. A last row with no sha256 refuses')
+    ap.add_argument('--heartbeat-every', type=int, default=0, help='write status-heartbeat.json every K completed rows, next to --out; 0 (the default) writes nothing')
     a = ap.parse_args()
     def trial_seed(i):
         if not a.seed_material: return i
@@ -167,6 +168,7 @@ def main():
     steps = [float(x) for x in a.rate_sweep.split(',')] if a.rate_sweep else [None]
     if jitters and a.rate_sweep: sys.exit('--jitter-sweep freezes the rate at --jitter-target; do not combine with --rate-sweep')
     t0 = time.time(); rows = 0
+    hb_path = os.path.join(os.path.dirname(a.out) or 'results', 'status-heartbeat.json')
     with open(a.out, 'a') as fo:
         for it in items:
             stim, ro = item_plan(it)
@@ -203,6 +205,8 @@ def main():
                           prev = hashlib.sha256(json.dumps(row, sort_keys=True).encode()).hexdigest(); row['sha256'] = prev
                           fo.write(json.dumps(row, sort_keys=True) + '\n'); fo.flush(); rows += 1
                           completed_keys.add(rk)
+                          if harden.heartbeat_due(a.heartbeat_every, rows):
+                              harden.write_heartbeat(hb_path, rows, [row['item'], row['condition'], row['trial'], row['stimulus'], row['step'], row['jitter']], harden.rss_gb())
                           print('item %d %-8s trial %d %-12s %5.1fs  DNp09 %.2f MDN %.2f DNp01 %.2f pC1 %.2f pIP10 %.2f HS R/L %.2f/%.2f' % (it['id'], cond, tr, sname, row['wall_s'], res['DNp09']['stimulus_hz'], res['MDN']['stimulus_hz'], res['DNp01']['stimulus_hz'], res['pC1']['stimulus_hz'], res['pIP10']['stimulus_hz'], res['HS_R']['stimulus_hz'], res['HS_L']['stimulus_hz']), flush=True)
     print('rows', rows, 'total %.0fs' % (time.time() - t0))
 if __name__ == '__main__': main()

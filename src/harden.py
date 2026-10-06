@@ -1,4 +1,4 @@
-"""Pure resume helpers for the runner. No torch and no connectome data."""
+"""Pure resume and heartbeat helpers for the runner. No torch and no connectome data."""
 import json, os, time
 from collections import namedtuple
 
@@ -157,3 +157,46 @@ def apply_resume(path, chain_prev, trial_start):
     if trial_start is None:
         trial_start = suggested
     return Resume(chain_prev, trial_start, keys, logs)
+
+
+def rss_gb():
+    """Current RSS in GB. VmRSS from /proc (Linux, kB) when present, else peak ru_maxrss."""
+    try:
+        with open('/proc/self/status') as f:
+            for line in f:
+                if line.startswith('VmRSS:'):
+                    return float(line.split()[1]) / 1e6
+    except Exception:
+        pass
+    try:
+        import resource
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
+    except Exception:
+        return 0.0
+
+
+def heartbeat_due(every, rows):
+    """True when this completed row should publish a heartbeat. 0 and None never do."""
+    if not every or every < 0:
+        return False
+    return rows % every == 0
+
+
+def write_heartbeat(path, rows, last_key, rss, ts=None):
+    """Atomically write status-heartbeat.json (temp file, then os.replace)."""
+    if ts is None:
+        ts = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
+    payload = {
+        'rows': int(rows),
+        'last_key': list(last_key) if last_key is not None else None,
+        'rss_gb': round(float(rss), 4),
+        'ts': ts,
+    }
+    directory = os.path.dirname(path) or '.'
+    os.makedirs(directory, exist_ok=True)
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(payload, f, sort_keys=True)
+        f.write('\n')
+    os.replace(tmp, path)
+    return payload
