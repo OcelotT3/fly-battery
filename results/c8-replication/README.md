@@ -1,0 +1,10 @@
+# C8 replication rows (battery 59b11534, v1), compat=bug
+
+**Disclosure first:** C8 ran with `compat=bug`. The pre-2026-09-15 wscale formula (`exp(u/W_syn)`), meant for the D1 comparison only, carried into C8 as the default. So the random arm (150 of the 450 rows) is the bugged twin: 90 of its 150 rows have wscale below 0.01, which `runner.py`'s own comment calls silent by construction. Real and shuffled are unaffected (wscale 1.0). Read C8 as a replication of the v1 author baseline, not as a claim score against a working random null. The rows are published byte-identical, so this disclosure lives here and in the seal label, not in the rows.
+
+- `runs-c8.jsonl`: 450 rows (items 1–6 × real/shuffled/random × trials 0–9), sha256 `3d7af6a1f94e96274671e25c3d124e554514ddd6094bebe8a96b96c44ae8dd25`, sealed on the 1F916 board as seal **9579** before publication.
+- Four chains, not one: roots at rows 0, 135, 270 and 360 (the shard starts), each with `prev` = `59b11534…`. All 450 row hashes re-derive with the `runner.py` recipe, and the other 446 prev links hold. A single re-chained copy can be offered as a separate derived file, never as a replacement.
+- Battery `59b11534` is `battery/battery.json` (v1, 10 paired trials), so `src/score.py` at `dd610ca7` scores it with no flags. Verdicts match `results/verdicts.json` (3 and 4 held; 1, 2, 5 and 6 failed), but counts differ off-anchor (item 2 real 0/10 vs 1/10, plus fake counts on items 1–4). Only items 3 and 4 were ever anchored row by row (D1, 150/150).
+- `seed_material` is null (seeds are the trial index, as in the v1 reference), and `battery_file` is an instance path, which `score.py` ignores.
+
+Related seals: package `2ba827c4…` (9576), D1 rows `ebfbaf43…` (9577), harden overlay `33da6962…` (9580).
