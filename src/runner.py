@@ -5,6 +5,7 @@ battery items. Usage: python src/runner.py [--items 1,2] [--trials 10] [--condit
 Outputs results/runs.jsonl (hash-chained, one row per trial) and results/verdicts.json.
 """
 import json, os, sys, time, hashlib, argparse, math
+import harden
 import numpy as np, scipy.sparse as sp, torch
 import pyarrow.feather as f, pyarrow.compute as pc
 DER = os.environ.get('FLY_DERIVED', 'data/derived'); DATA = os.environ.get('FLY_DATA', 'data/malecns')
@@ -129,13 +130,14 @@ def item_plan(it):
     return stim, ro
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--items', default='1,2,3,4,5,6'); ap.add_argument('--trials', type=int, default=T['paired_trials']); ap.add_argument('--conditions', default='real,shuffled,random'); ap.add_argument('--smoke', action='store_true'); ap.add_argument('--rate-sweep', default=None, help='v3: comma-separated multipliers of the reference probe rate; the random twin is calibrated to each within 25%% and every step is scored'); ap.add_argument('--activity-match', action='store_true', help='v2: calibrate the random twin so its probe population rate is within [0.5,2]x the reference model'); ap.add_argument('--seed-material', default=None, help='sealhash:checkpointroot — derive trial seeds as sha256(seal || root || i) (vish, c60643)'); ap.add_argument('--jitter-sweep', default=None, help='v6: comma-separated per-neuron jitter factors j; the random twin is drawn at each j with the SAME six global draws per seed, calibrated to --jitter-target x the reference probe rate within 25%%, and every width is scored (cost-is-not-value c75802)'); ap.add_argument('--jitter-target', type=float, default=1.0, help='v6: the one frozen rate target for the jitter sweep (multiplier of the reference probe rate)'); ap.add_argument('--out', default='results/runs.jsonl'); ap.add_argument('--trial-start', type=int, default=0, help='2026-09-25: first trial index to run (seeds are per index, so a slice reproduces the same rows as the full run); default 0 changes nothing')
+    ap.add_argument('--max-rss-gb', type=float, default=None, help='log RSS after weight builds and mid-run; exit if it exceeds this many GB')
     a = ap.parse_args()
     def trial_seed(i):
         if not a.seed_material: return i
         seal, root = a.seed_material.split(':'); return int(hashlib.sha256((seal + root + str(i)).encode()).hexdigest()[:15], 16)
     items = [it for it in B['items'] if it['id'] in {int(x) for x in a.items.split(',')}]; conds = a.conditions.split(','); ntr = 1 if a.smoke else a.trials
     os.makedirs('results', exist_ok=True); prev = hashlib.sha256(open(BATTERY_FILE, 'rb').read()).hexdigest()
-    W_real = build_weights(A); shuffles = {}
+    W_real = build_weights(A); harden.guard_rss(a.max_rss_gb, 'build_weights(real)'); shuffles = {}
     ref_rate = None
     jitters = [float(x) for x in a.jitter_sweep.split(',')] if a.jitter_sweep else None
     if jitters is None and not a.rate_sweep and 'width_scan' in B and 'random' in conds:
@@ -154,12 +156,14 @@ def main():
                     sd = trial_seed(tr)
                     if cond == 'real': W, (P, jit) = W_real, params('reference', sd)
                     elif cond == 'shuffled':
-                        if tr not in shuffles: shuffles.clear(); shuffles[tr] = build_weights(A, seed=sd)   # v6.1 (c77282): hold one shuffled twin at a time (~0.5 GB each); build_weights is deterministic in sd, so a rebuilt twin is the same twin
+                        if tr not in shuffles: shuffles.clear(); shuffles[tr] = build_weights(A, seed=sd); harden.guard_rss(a.max_rss_gb, 'build_weights(shuffled)')   # v6.1 (c77282): hold one shuffled twin at a time (~0.5 GB each); build_weights is deterministic in sd, so a rebuilt twin is the same twin
                         W, (P, jit) = shuffles[tr], params('reference', sd)
                     else:
                         W, (P, jit) = sign_permuted_weights(A, sd), params('random', sd)
+                        harden.guard_rss(a.max_rss_gb, 'sign_permuted_weights')
                         if a.activity_match and not a.rate_sweep and not jitters:
                             P, rate, iters = activity_match(W, P, jit, sd, ref_rate); P['probe_rate'] = round(rate, 3); P['ref_probe_rate'] = round(ref_rate, 3); P['match_iters'] = iters; print('  activity-matched trial %d: wscale %.3f probe %.3f (ref %.3f) in %d iters' % (tr, P['wscale'], rate, ref_rate, iters), flush=True)
+                    harden.guard_rss(a.max_rss_gb, 'mid-run')
                     axis = ([('jitter', j) for j in jitters] if jitters else [('step', st) for st in steps]) if cond == 'random' else [('step', None)]
                     for kind, val in axis:
                       if kind == 'jitter':
