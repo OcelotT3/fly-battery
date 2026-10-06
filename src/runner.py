@@ -5,6 +5,7 @@ battery items. Usage: python src/runner.py [--items 1,2] [--trials 10] [--condit
 Outputs results/runs.jsonl (hash-chained, one row per trial) and results/verdicts.json.
 """
 import json, os, sys, time, hashlib, argparse, math
+import harden
 import numpy as np, scipy.sparse as sp, torch
 import pyarrow.feather as f, pyarrow.compute as pc
 DER = os.environ.get('FLY_DERIVED', 'data/derived'); DATA = os.environ.get('FLY_DATA', 'data/malecns')
@@ -128,13 +129,24 @@ def item_plan(it):
           'HS_R': cls({'classes': ['HSE', 'HSN', 'HSS'], 'side': 'R'}), 'HS_L': cls({'classes': ['HSE', 'HSN', 'HSS'], 'side': 'L'}), 'DNa02_R': cls({'classes': ['DNa02'], 'side': 'R'}), 'DNa02_L': cls({'classes': ['DNa02'], 'side': 'L'})}
     return stim, ro
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--items', default='1,2,3,4,5,6'); ap.add_argument('--trials', type=int, default=T['paired_trials']); ap.add_argument('--conditions', default='real,shuffled,random'); ap.add_argument('--smoke', action='store_true'); ap.add_argument('--rate-sweep', default=None, help='v3: comma-separated multipliers of the reference probe rate; the random twin is calibrated to each within 25%% and every step is scored'); ap.add_argument('--activity-match', action='store_true', help='v2: calibrate the random twin so its probe population rate is within [0.5,2]x the reference model'); ap.add_argument('--seed-material', default=None, help='sealhash:checkpointroot — derive trial seeds as sha256(seal || root || i) (vish, c60643)'); ap.add_argument('--jitter-sweep', default=None, help='v6: comma-separated per-neuron jitter factors j; the random twin is drawn at each j with the SAME six global draws per seed, calibrated to --jitter-target x the reference probe rate within 25%%, and every width is scored (cost-is-not-value c75802)'); ap.add_argument('--jitter-target', type=float, default=1.0, help='v6: the one frozen rate target for the jitter sweep (multiplier of the reference probe rate)'); ap.add_argument('--out', default='results/runs.jsonl'); ap.add_argument('--trial-start', type=int, default=0, help='2026-09-25: first trial index to run (seeds are per index, so a slice reproduces the same rows as the full run); default 0 changes nothing')
+    ap = argparse.ArgumentParser(); ap.add_argument('--items', default='1,2,3,4,5,6'); ap.add_argument('--trials', type=int, default=T['paired_trials']); ap.add_argument('--conditions', default='real,shuffled,random'); ap.add_argument('--smoke', action='store_true'); ap.add_argument('--rate-sweep', default=None, help='v3: comma-separated multipliers of the reference probe rate; the random twin is calibrated to each within 25%% and every step is scored'); ap.add_argument('--activity-match', action='store_true', help='v2: calibrate the random twin so its probe population rate is within [0.5,2]x the reference model'); ap.add_argument('--seed-material', default=None, help='sealhash:checkpointroot — derive trial seeds as sha256(seal || root || i) (vish, c60643)'); ap.add_argument('--jitter-sweep', default=None, help='v6: comma-separated per-neuron jitter factors j; the random twin is drawn at each j with the SAME six global draws per seed, calibrated to --jitter-target x the reference probe rate within 25%%, and every width is scored (cost-is-not-value c75802)'); ap.add_argument('--jitter-target', type=float, default=1.0, help='v6: the one frozen rate target for the jitter sweep (multiplier of the reference probe rate)'); ap.add_argument('--out', default='results/runs.jsonl'); ap.add_argument('--trial-start', type=int, default=None, help='2026-09-25: first trial index to run (seeds are per index, so a slice reproduces the same rows as the full run); omitted means 0, unless --resume fills the next index. An explicit 0 stays 0')
+    ap.add_argument('--chain-prev', default=None, help='sha256 of the last row already in --out; omitted means the battery-file hash, unless --resume fills that sha256 from the last row')
+    ap.add_argument('--resume', action='store_true', help='parse --out for the last row sha256 and completed row keys; skip duplicates; auto-wire --chain-prev and --trial-start when omitted. A torn last line is truncated first')
     a = ap.parse_args()
     def trial_seed(i):
         if not a.seed_material: return i
         seal, root = a.seed_material.split(':'); return int(hashlib.sha256((seal + root + str(i)).encode()).hexdigest()[:15], 16)
     items = [it for it in B['items'] if it['id'] in {int(x) for x in a.items.split(',')}]; conds = a.conditions.split(','); ntr = 1 if a.smoke else a.trials
-    os.makedirs('results', exist_ok=True); prev = hashlib.sha256(open(BATTERY_FILE, 'rb').read()).hexdigest()
+    os.makedirs('results', exist_ok=True)
+    completed_keys = set()
+    if a.resume:
+        wired = harden.apply_resume(a.out, a.chain_prev, a.trial_start)
+        a.chain_prev, a.trial_start, completed_keys = wired.chain_prev, wired.trial_start, wired.completed_keys
+        for line in wired.logs:
+            print(line, flush=True)
+    if a.trial_start is None:
+        a.trial_start = 0
+    prev = a.chain_prev or hashlib.sha256(open(BATTERY_FILE, 'rb').read()).hexdigest()
     W_real = build_weights(A); shuffles = {}
     ref_rate = None
     jitters = [float(x) for x in a.jitter_sweep.split(',')] if a.jitter_sweep else None
@@ -173,10 +185,15 @@ def main():
                         print('  sweep trial %d x%.2f: wscale %.4f probe %.3f (target %.3f) in %d iters' % (tr, step, P0['wscale'], rate, ref_rate * step, iters), flush=True)
                       else: P0 = P; jit0 = jit
                       for sname, inputs in stim.items():
+                          rk = harden.row_key(it['id'], cond, tr, sname, (P0.get('target_multiplier') if cond == 'random' else None), (P0.get('jitter') if cond == 'random' and jitters else None))
+                          if rk in completed_keys:
+                              print('skip duplicate %s' % (rk,), flush=True)
+                              continue
                           t1 = time.time(); res = simulate(W, P0, jit0, inputs, ro, seed=sd)
                           row = dict(step=(P0.get('target_multiplier') if cond == 'random' else None), jitter=(P0.get('jitter') if cond == 'random' and jitters else None), seed=sd, seed_material=a.seed_material, battery_file=BATTERY_FILE, battery_sha256=hashlib.sha256(open(BATTERY_FILE, 'rb').read()).hexdigest(), item=it['id'], condition=cond, trial=tr, stimulus=sname, params={k: (round(v, 4) if isinstance(v, float) else v) for k, v in P0.items()}, readouts=res, wall_s=round(time.time() - t1, 1), prev=prev)
                           prev = hashlib.sha256(json.dumps(row, sort_keys=True).encode()).hexdigest(); row['sha256'] = prev
                           fo.write(json.dumps(row, sort_keys=True) + '\n'); fo.flush(); rows += 1
+                          completed_keys.add(rk)
                           print('item %d %-8s trial %d %-12s %5.1fs  DNp09 %.2f MDN %.2f DNp01 %.2f pC1 %.2f pIP10 %.2f HS R/L %.2f/%.2f' % (it['id'], cond, tr, sname, row['wall_s'], res['DNp09']['stimulus_hz'], res['MDN']['stimulus_hz'], res['DNp01']['stimulus_hz'], res['pC1']['stimulus_hz'], res['pIP10']['stimulus_hz'], res['HS_R']['stimulus_hz'], res['HS_L']['stimulus_hz']), flush=True)
     print('rows', rows, 'total %.0fs' % (time.time() - t0))
 if __name__ == '__main__': main()
