@@ -206,7 +206,10 @@ def main():
                           fo.write(json.dumps(row, sort_keys=True) + '\n'); fo.flush(); rows += 1
                           completed_keys.add(rk)
                           if harden.heartbeat_due(a.heartbeat_every, rows):
-                              harden.write_heartbeat(hb_path, rows, [row['item'], row['condition'], row['trial'], row['stimulus'], row['step'], row['jitter']], harden.rss_gb())
+                              try:
+                                  harden.write_heartbeat(hb_path, rows, [row['item'], row['condition'], row['trial'], row['stimulus'], row['step'], row['jitter']], harden.rss_gb())
+                              except OSError as err:   # the rows file is the record; a failed heartbeat must not end the run
+                                  print('heartbeat write failed %s: %s' % (hb_path, err), flush=True)
                           print('item %d %-8s trial %d %-12s %5.1fs  DNp09 %.2f MDN %.2f DNp01 %.2f pC1 %.2f pIP10 %.2f HS R/L %.2f/%.2f' % (it['id'], cond, tr, sname, row['wall_s'], res['DNp09']['stimulus_hz'], res['MDN']['stimulus_hz'], res['DNp01']['stimulus_hz'], res['pC1']['stimulus_hz'], res['pIP10']['stimulus_hz'], res['HS_R']['stimulus_hz'], res['HS_L']['stimulus_hz']), flush=True)
     print('rows', rows, 'total %.0fs' % (time.time() - t0))
 if __name__ == '__main__': main()

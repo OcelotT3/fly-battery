@@ -1,11 +1,21 @@
 """Heartbeat helpers and the runner wiring. No torch."""
-import json, os, py_compile, tempfile, unittest
+import ast, contextlib, io, json, os, py_compile, tempfile, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 import sys
 sys.path.insert(0, str(ROOT / 'src'))
 import harden
+
+
+def runner_heartbeat_block():
+    """The `if harden.heartbeat_due(...)` statement from runner.main, compiled on its own (runner imports torch)."""
+    tree = ast.parse((ROOT / 'src' / 'runner.py').read_text())
+    hits = [n for n in ast.walk(tree) if isinstance(n, ast.If) and 'harden.heartbeat_due(' in ast.unparse(n.test)]
+    assert len(hits) == 1, len(hits)
+    after = ast.parse('reached_progress_print = True').body
+    mod = ast.Module(body=[hits[0]] + after, type_ignores=[])
+    return compile(ast.fix_missing_locations(mod), 'runner.py:heartbeat', 'exec')
 
 HASH_LINE = "prev = hashlib.sha256(json.dumps(row, sort_keys=True).encode()).hexdigest(); row['sha256'] = prev"
 WRITE_LINE = "fo.write(json.dumps(row, sort_keys=True) + '\\n'); fo.flush(); rows += 1"
@@ -59,6 +69,35 @@ class HeartbeatTests(unittest.TestCase):
             kept = json.loads(Path(path).read_text())
             self.assertEqual(kept['rows'], 1)
             self.assertEqual(kept['ts'], 't1')
+
+    def test_runner_call_site_survives_heartbeat_oserror(self):
+        code = runner_heartbeat_block()
+        with tempfile.TemporaryDirectory() as td:
+            hb_path = os.path.join(td, 'status-heartbeat.json')
+            harden.write_heartbeat(hb_path, 1, ['a'], 0.1, ts='t1')
+            ns = {
+                'harden': harden, 'hb_path': hb_path, 'rows': 2,
+                'a': type('A', (), {'heartbeat_every': 1})(),
+                'row': {'item': 1, 'condition': 'real', 'trial': 1, 'stimulus': 'a', 'step': None, 'jitter': None},
+            }
+            real = os.replace
+
+            def boom(src, dst):
+                raise OSError('disk full')
+
+            out = io.StringIO()
+            os.replace = boom
+            try:
+                with contextlib.redirect_stdout(out):
+                    exec(code, ns)
+            finally:
+                os.replace = real
+            self.assertTrue(ns.get('reached_progress_print'))
+            lines = out.getvalue().splitlines()
+            self.assertEqual(len(lines), 1, lines)
+            self.assertIn(hb_path, lines[0])
+            self.assertIn('disk full', lines[0])
+            self.assertEqual(json.loads(Path(hb_path).read_text())['rows'], 1)
 
     def test_rss_gb_is_a_nonnegative_float(self):
         rss = harden.rss_gb()
